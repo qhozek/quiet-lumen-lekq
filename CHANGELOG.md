@@ -1,4 +1,80 @@
 # Heroku Changelog
+## HerokuSafe 2.2.0
+
+- Port Heroku 2.2.0 features and fixes from snapshot `19f4a8f82159497d2f67e1fcbea8cab4249b3346`.
+- Keep remote allow-lists, branch enforcement, upstream announcements and support-channel join requests disabled.
+- Trust only `qhozek/quiet-lumen-lekq` for core updates, with fast-forward-only updates and no automatic resets.
+- Restore approved module copies offline; changed module code requires confirmation, including legacy "always update" settings.
+- Pin imported libraries to local copies; no silent refresh on restart.
+- Keep API protection enabled by default; remove bundled third-party module presets.
+- Build Docker from this checkout, not from upstream; keep data separate from application code.
+- Include token redaction, private/atomic writes, HTTPS downloads, nested pointers, richer messages,
+  multiple prefixes, alias improvements, inline lifecycle and task cleanup fixes from 2.2.0.
+
+Older installations receive the normal update prompt only if their Git origin already points to this fork
+and update notifications are enabled. Docker installations update by rebuilding the image.
+
+## 🪐 Heroku 2.2.0
+
+ - add rich messages support (rich = True) with the {img} placeholder
+ - add duplicate command dispatcher
+ - add multiple prefixes support
+ - add -p argument to owneradd
+ - add check if the owner is already added in owneradd
+ - add guest bot update
+ - add reply_to parameter to Form class and inline message replies
+ - add `inline_ready` hook for modules
+ - add `loader.InlineDownError`
+ - add the alias `kill` for the `terminate` command
+ - add message state tracking to tell a reaction from an edit (`keep_message_state` in Settings)
+ - rework sudo password input in terminal
+ - fix grep usage in terminal, including premium emojis
+ - fix premium emojis not displaying in results of inline handlers
+ - fix `e` aliases
+ - fix proper removal of bot update handlers and references
+ - fix LoaderRestrictor check and inline bot initialization
+ - fix error logging in inline query and event polling
+ - fix multiple unauthorized session prompts on start
+ - add logs for discarded and terminated sessions
+ - fix internal modules failing on the first start without the inline bot
+ - fix client startup failing on inline manager errors
+ - fix inline bot recreation when the bot is frozen
+ - fix process hanging on unload, add task tracking for asyncio tasks
+ - improve WebpageMediaEmpty error
+ - improve look of .dlm with multiple modules
+ - add missing strings to language packs, translate config descriptions
+ - remove presets module
+ - update herokutl to 2.2.0 and clean up requirements
+ - improve install.sh and add a workflow for testing it
+ - fine-tune the installation script
+ - add the universal installer to the installation command
+ - add module cache with startup and periodic update checks, with an inline prompt to update (or always update) changed modules
+ - add rich mode to .dlm, .help, .heroku, ping and .translate, with {img} and collapsible sections
+ - add rich message methods to the client (send, edit, get, translate, compose)
+ - add module filter to .logs and per-client log options
+ - add several prefixes and a target user (@user, --user) to .setprefix
+ - add prefix validation and prefixes in the list of .owners
+ - add `a, b && command` syntax and multiline aliases to .addalias
+ - add token redaction for logs, errors and chat output
+ - add private file permissions and atomic writes for session, database and log files
+ - add HTTPS-only module and translation downloads, basic auth is sent to the trusted repo only
+ - add private channel check for asset, database, log and backup channels
+ - add owner-only check for inline form queries
+ - add setup of inline mode and inline feedback for a new inline bot
+ - add a hint for the BotFather bot limit and token parsing from its reply
+ - add lazy placeholders, a failing placeholder no longer breaks help and info
+ - add nested pointers for self.db.pointer(), changes in nested dicts and lists of the database are now saved
+ - add module task cancellation and inline cleanup on unload
+ - improve terminal output streaming and the sudo prompt
+ - improve api ratelimiter call chains
+ - improve module translations, with validation and background refresh
+ - improve log routing by client
+ - fix grep -v with a single argument
+ - fix unit leaks and races in inline forms, lists and galleries
+ - fix loader.loop() stop and start race
+ - fix pip output and herokutl version check
+ - move repository and assets to Heroku-userbot
+
 ## 🪐 Heroku 2.1.0
 
  - fix security check in help
@@ -389,10 +465,10 @@
 - Update to Hikka-TL 2.0.7
 - Allow double-restart
 - Personal messages scam modules protection
-- https://github.com/coddrago/Heroku/issues/115
-- https://github.com/coddrago/Heroku/issues/114
-- https://github.com/coddrago/Heroku/issues/119
-- https://github.com/coddrago/Heroku/issues/120
+- https://github.com/ZetGoHack/Heroku/issues/115
+- https://github.com/ZetGoHack/Heroku/issues/114
+- https://github.com/ZetGoHack/Heroku/issues/119
+- https://github.com/ZetGoHack/Heroku/issues/120
 - Other changes
 
 ## 🌑 Heroku 1.6.3

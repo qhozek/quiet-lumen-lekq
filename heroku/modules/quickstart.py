@@ -6,7 +6,7 @@
 
 # ©️ Codrago, 2024-2030
 # This file is a part of Heroku Userbot
-# 🌐 https://github.com/coddrago/Heroku
+# 🌐 https://github.com/Heroku-userbot/Heroku
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -137,10 +137,7 @@ class Quickstart(loader.Module):
                 "You can try solving this by leaving some channels/groups"
             )
 
-        # herokusafe: автопросьба вступить в чужой чат убрана.
-        # Раньше юзербот сам предлагал join в heroku_talks при старте.
-        # Вступай руками, если надо: https://t.me/heroku_talks
-        logger.debug("herokusafe: skipping request_join(heroku_talks)")
+        logger.debug("HerokuSafe: no automatic upstream support-channel join")
 
         self.mark = lambda: [
             [
@@ -160,6 +157,7 @@ class Quickstart(loader.Module):
             3,
         )
 
+    async def inline_ready(self):
         if self.get("no_msg"):
             return
 

@@ -45,6 +45,12 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.modules_cache
+.libraries_cache
+sessions
+heroku.log
+heroku-install.log
+.requirements_hash
 nosetests.xml
 coverage.xml
 *.cover

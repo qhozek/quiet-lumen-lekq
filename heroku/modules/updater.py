@@ -6,7 +6,7 @@
 
 # ©️ Codrago, 2024-2030
 # This file is a part of Heroku Userbot
-# 🌐 https://github.com/coddrago/Heroku
+# 🌐 https://github.com/Heroku-userbot/Heroku
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -25,7 +25,7 @@ import typing
 
 import aiohttp
 import git
-from git import GitCommandError, Repo
+from git import Repo
 from herokutl.tl.functions.messages import (
     GetDialogFiltersRequest,
     UpdateDialogFilterRequest,
@@ -40,6 +40,7 @@ from herokutl.tl.types import (
 
 from .. import loader, utils, version
 from .._internal import restart
+from .._release import REPOSITORY_URL, UPDATE_BRANCH, is_safe_origin
 from ..inline.types import BotInlineCall, InlineCall
 
 logger = logging.getLogger(__name__)
@@ -62,10 +63,11 @@ class UpdaterMod(loader.Module):
         self._last_emfile_warning = 0.0
         self._last_git_fetch = 0.0
         self._git_fetch_backoff_until = 0.0
+        self._updates_available = not NO_GIT
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
                 "GIT_ORIGIN_URL",
-                "https://github.com/ZetGoHack/Heroku",
+                REPOSITORY_URL,
                 lambda: self.strings["origin_cfg_doc"],
                 validator=loader.validators.Link(),
             ),
@@ -99,7 +101,10 @@ class UpdaterMod(loader.Module):
     def _is_emfile_error(error: BaseException) -> bool:
         current: BaseException | None = error
         while current is not None:
-            if isinstance(current, OSError) and current.errno in (errno.EMFILE, errno.EAGAIN):
+            if isinstance(current, OSError) and current.errno in (
+                errno.EMFILE,
+                errno.EAGAIN,
+            ):
                 return True
 
             current = current.__cause__ or current.__context__
@@ -142,18 +147,26 @@ class UpdaterMod(loader.Module):
         return res
 
     def _get_update_state(self) -> tuple[str, str, str | typing.Literal[False]]:
-        with git.Repo() as repo:
+        with self._safe_repo() as repo:
             origin = repo.remote("origin")
             now = time.monotonic()
             if now >= self._git_fetch_backoff_until:
                 if now - self._last_git_fetch >= self._GIT_FETCH_INTERVAL:
                     logger.debug("Fetching changelog from %s", origin.url)
                     subprocess.run(
-                        ["git", "fetch", "--quiet", "origin"],
+                        [
+                            "git",
+                            "-c",
+                            "http.followRedirects=false",
+                            "fetch",
+                            "--quiet",
+                            REPOSITORY_URL,
+                            f"refs/heads/{UPDATE_BRANCH}:refs/remotes/origin/{UPDATE_BRANCH}",
+                        ],
                         cwd=repo.working_dir,
                         timeout=60,
                         capture_output=True,
-                        check=False,
+                        check=True,
                     )
                     self._last_git_fetch = now
             else:
@@ -164,9 +177,11 @@ class UpdaterMod(loader.Module):
 
             current = repo.head.commit.hexsha
             latest = next(
-                repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                repo.iter_commits(f"origin/{UPDATE_BRANCH}", max_count=1)
             ).hexsha
-            commits = [*repo.iter_commits(f"HEAD..origin/{version.branch}")]
+            commits = [
+                *repo.iter_commits(f"HEAD..origin/{UPDATE_BRANCH}", max_count=50)
+            ]
 
             return (
                 current,
@@ -187,26 +202,26 @@ class UpdaterMod(loader.Module):
         if NO_GIT:
             return ""
         try:
-            with git.Repo() as repo:
+            with self._safe_repo() as repo:
                 return next(
-                    repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                    repo.iter_commits(f"origin/{UPDATE_BRANCH}", max_count=1)
                 ).hexsha
         except Exception:
             return ""
 
     @loader.loop(interval=60, autostart=False)
     async def poller_announcement(self):
-        # herokusafe: remote announcements disabled (was fetching
-        # coddrago/assets announcment.txt and sending it via inline bot).
-        # Left as no-op so чужой пуш не может прислать сообщение всем юзерам.
+        """HerokuSafe does not relay upstream-controlled announcements."""
         return
 
     @loader.loop(interval=60, autostart=True)
     async def poller(self):
-        if NO_GIT:
+        if NO_GIT or not self._updates_available:
             return
         try:
-            current, self._pending, changelog = self._get_update_state()
+            current, self._pending, changelog = await asyncio.to_thread(
+                self._get_update_state
+            )
         except Exception as e:
             self._log_git_poll_error(e)
             return
@@ -230,9 +245,12 @@ class UpdaterMod(loader.Module):
                 try:
                     async with aiohttp.ClientSession() as session:
                         r = await session.get(
-                            url=f"https://api.github.com/repos/ZetGoHack/Heroku/contents/heroku/version.py?ref={version.branch}",
+                            url=f"{REPOSITORY_URL.replace('https://github.com/', 'https://raw.githubusercontent.com/')}/{self._pending}/heroku/version.py",
                             headers={"Accept": "application/vnd.github.v3.raw"},
+                            timeout=aiohttp.ClientTimeout(total=15),
+                            allow_redirects=False,
                         )
+                        r.raise_for_status()
                         text = await r.text()
 
                     new_version = ""
@@ -249,12 +267,13 @@ class UpdaterMod(loader.Module):
                     manual_update = True
 
             if manual_update:
-                m = await self.inline.bot.send_photo(
+                m = await self.inline.bot.send_message(
                     self.tg_id,
-                    "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/heroku/updated.png",
-                    caption=self.strings["update_required"].format(
+                    self.strings["update_required"].format(
                         current[:6],
-                        '<a href="https://github.com/ZetGoHack/Heroku/compare/{}...{}">{}</a>'.format(
+                        (
+                            '<a href="' + REPOSITORY_URL + '/compare/{}...{}">{}</a>'
+                        ).format(
                             current[:12],
                             self._pending[:12],
                             self._pending[:6],
@@ -272,13 +291,14 @@ class UpdaterMod(loader.Module):
                 self.set("upd_msg", m.message_id)
 
             else:
-                m = await self.inline.bot.send_photo(
+                m = await self.inline.bot.send_message(
                     self.tg_id,
-                    "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/heroku/updated.png",
-                    caption=self.strings["autoupdate_notifier"].format(
+                    self.strings["autoupdate_notifier"].format(
                         self._pending[:6],
                         changelog,
-                        '<a href="https://github.com/ZetGoHack/Heroku/compare/{}...{}">{}</a>'.format(
+                        (
+                            '<a href="' + REPOSITORY_URL + '/compare/{}...{}">{}</a>'
+                        ).format(
                             current[:12],
                             self._pending[:12],
                             "🔎 diff",
@@ -478,30 +498,52 @@ class UpdaterMod(loader.Module):
         await message.client.disconnect()
         restart()
 
+    @staticmethod
+    def _safe_repo():
+        repo = Repo(os.path.dirname(utils.get_base_dir()))
+        try:
+            origin = repo.remote("origin")
+            urls = list(origin.urls)
+            if not urls or not all(is_safe_origin(url) for url in urls):
+                raise RuntimeError(
+                    "HerokuSafe updates require origin=https://github.com/qhozek/quiet-lumen-lekq.git; "
+                    "upstream/unknown origin is refused. Change it manually after checking your installation."
+                )
+            if repo.head.is_detached or repo.active_branch.name != UPDATE_BRANCH:
+                raise RuntimeError("HerokuSafe updates require the master branch")
+            return repo
+        except Exception:
+            repo.close()
+            raise
+
     async def download_common(self):
         def _sync():
-            try:
-                with Repo(os.path.dirname(utils.get_base_dir())) as repo:
-                    origin = repo.remote("origin")
-                    logger.debug("Fetching updates from %s", origin.url)
-                    r = origin.pull()
-                    new_commit = repo.head.commit
-                    for info in r:
-                        if info.old_commit:
-                            for d in new_commit.diff(info.old_commit):
-                                if d.b_path == "requirements.txt":
-                                    return True
-                return False
-            except git.exc.InvalidGitRepositoryError:
-                repo = Repo.init(os.path.dirname(utils.get_base_dir()))
-                with repo:
-                    origin = repo.create_remote("origin", self.config["GIT_ORIGIN_URL"])
-                    logger.debug("Fetching initial updates from %s", origin.url)
-                    origin.fetch()
-                    repo.create_head("master", origin.refs.master)
-                    repo.heads.master.set_tracking_branch(origin.refs.master)
-                    repo.heads.master.checkout(True)
-                return False
+            with self._safe_repo() as repo:
+                if repo.is_dirty(untracked_files=True):
+                    raise RuntimeError(
+                        "Local changes found; refusing to overwrite them"
+                    )
+                before = repo.head.commit
+                subprocess.run(
+                    [
+                        "git",
+                        "-c",
+                        "http.followRedirects=false",
+                        "fetch",
+                        "--quiet",
+                        REPOSITORY_URL,
+                        f"refs/heads/{UPDATE_BRANCH}:refs/remotes/origin/{UPDATE_BRANCH}",
+                    ],
+                    cwd=repo.working_dir,
+                    check=True,
+                    timeout=90,
+                    capture_output=True,
+                )
+                repo.git.merge("--ff-only", f"origin/{UPDATE_BRANCH}")
+                return any(
+                    diff.b_path in {"requirements.txt", "runtime-pins.txt"}
+                    for diff in before.diff(repo.head.commit)
+                )
 
         return await asyncio.wait_for(
             asyncio.to_thread(_sync),
@@ -524,7 +566,6 @@ class UpdaterMod(loader.Module):
                         os.path.dirname(utils.get_base_dir()),
                         "requirements.txt",
                     ),
-                    "--user",
                 ],
                 check=True,
                 timeout=600,
@@ -544,17 +585,19 @@ class UpdaterMod(loader.Module):
         try:
             args = utils.get_args_raw(message)
             current = utils.get_git_hash() or ""
-            with git.Repo() as repo:
+            with self._safe_repo() as repo:
                 upcoming = next(
-                    repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                    repo.iter_commits(f"origin/{UPDATE_BRANCH}", max_count=1)
                 ).hexsha
             if (
-                "-f" in args
-                or not self.inline.init_complete
-                or not await self.inline.form(
+                "-f" not in args
+                and self.inline.init_complete
+                and await self.inline.form(
                     message=message,
                     text=(
-                        self.strings["update_confirm"].format(
+                        self.strings["update_confirm"].replace(
+                            "https://github.com/Heroku-userbot/Heroku", REPOSITORY_URL
+                        ).format(
                             current, current[:8], upcoming, upcoming[:8]
                         )
                         if upcoming != current
@@ -574,9 +617,10 @@ class UpdaterMod(loader.Module):
                     ],
                 )
             ):
-                raise
+                return
         except Exception:
-            await self.inline_update(message)
+            logger.debug("Update confirmation unavailable", exc_info=True)
+        await self.inline_update(message)
 
     @loader.command()
     async def autoupdate(self, message: Message):
@@ -594,33 +638,15 @@ class UpdaterMod(loader.Module):
         msg_obj: InlineCall | Message,
         hard: bool = False,
     ):
-        # We don't really care about asyncio at this point, as we are shutting down
-        if hard:
-            os.system(f"cd {utils.get_base_dir()} && cd .. && git reset --hard HEAD")
-
+        if NO_GIT:
+            logger.warning("Git disabled via --no-git; update skipped")
+            return
         try:
-            with contextlib.suppress(Exception):
-                msg_obj = await utils.answer(msg_obj, self.strings["downloading"])
-
-            try:
-                req_update = await self.download_common()
-            except TimeoutError:
-                logger.exception("Timed out while fetching updates from git remote")
-                return
-
-            with contextlib.suppress(Exception):
-                msg_obj = await utils.answer(msg_obj, self.strings["installing"])
-
-            if req_update:
-                self.req_common()
-
+            if await self.download_common():
+                await asyncio.to_thread(self.req_common)
             await self.restart_common(msg_obj)
-        except GitCommandError:
-            if not hard:
-                await self.inline_update(msg_obj, True)
-                return
-
-            logger.critical("Got update loop. Update manually via .terminal")
+        except Exception:
+            logger.exception("Update failed")
 
     @loader.command()
     async def source(self, message: Message):
@@ -630,11 +656,18 @@ class UpdaterMod(loader.Module):
         )
 
     async def client_ready(self):
-        try:
-            with git.Repo():
-                pass
-        except Exception as e:
-            raise loader.LoadError("Can't load due to repo init error") from e
+        # Stored settings from previous versions must not retain the upstream URL.
+        self.config["GIT_ORIGIN_URL"] = REPOSITORY_URL
+        if not NO_GIT:
+            try:
+                with self._safe_repo():
+                    pass
+            except Exception:
+                # Keep .restart/.ubstop usable, including inside immutable images.
+                self._updates_available = False
+                logger.warning(
+                    "Core Git updates unavailable; check origin/branch", exc_info=True
+                )
 
         if not self.get("autoupdate_answered"):
             self.set("autoupdate_answered", self.get("autoupdate", False))
@@ -670,10 +703,13 @@ class UpdaterMod(loader.Module):
 
             self.set("do_not_create", True)
 
+    async def inline_ready(self):
+        if not self._updates_available:
+            return
         if not self.config["autoupdate"] and not self.get("autoupdate_answered", False):
             await self.inline.bot.send_photo(
                 self.tg_id,
-                photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/heroku/unit_alpha.png",
+                photo="https://raw.githubusercontent.com/Heroku-userbot/assets/refs/heads/main/unit_alpha.jpg",
                 caption=self.strings["autoupdate"],
                 reply_markup=self.inline.generate_markup(
                     [
@@ -789,7 +825,7 @@ class UpdaterMod(loader.Module):
                 )
 
     async def update_complete(self):
-        logger.debug("Self update successful! Edit message")
+        logger.debug("Restart successful; modules are still loading. Edit message")
         start = self.get("restart_ts")
         try:
             took = round(time.time() - start)

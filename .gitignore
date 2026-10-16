@@ -46,6 +46,8 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.modules_cache/
+.libraries_cache/
 nosetests.xml
 coverage.xml
 *.cover
@@ -174,4 +176,15 @@ vendor/
 Pipfile.lock
 
 heroku.log.*
+heroku.log
+heroku-install.log
 unknown_errors.txt
+.modules_cache/
+.heroku-update-backups/
+.env.*
+*.session*
+*.pem
+*.key
+*credentials*.json
+git.zip
+.git.zip

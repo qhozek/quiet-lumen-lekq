@@ -1,0 +1,20 @@
+# Reviewed release's transitive dependency versions. Update deliberately.
+aiohappyeyeballs==2.7.1
+aiosignal==1.4.0
+attrs==26.1.0
+beautifulsoup4==4.15.0
+bs4==0.0.2
+certifi==2026.7.22
+charset-normalizer==3.5.2
+frozenlist==1.8.0
+gitdb==4.0.12
+idna==3.20
+multidict==6.9.1
+propcache==0.5.4
+pyaes==1.6.1
+pyasn1==0.6.4
+smmap==5.0.3
+soupsieve==3.0.3
+typing_extensions==4.16.0
+urllib3==2.8.0
+yarl==1.25.1

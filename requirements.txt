@@ -1,21 +1,18 @@
-herokutl==2.1.0
+# Never loosen this pin: HerokuTL has access to session keys.
+-c runtime-pins.txt
+herokutl==2.2.0
 pyaes
-aiofile==3.8.1
-aiofiles==24.1.0
 gitpython==3.1.50
-deep-translator
+deep-translator==1.11.4
 meval==2.5
 aiohttp==3.13.5
 requests==2.33.1
-certifi==2024.8.30
 grapheme==0.6.0
-emoji>=1.7
+emoji==2.16.0
 psutil==6.0.0
-TgCrypto-pyrofork
 rsa==4.9
 ruamel.yaml==0.17.21
-bs4==0.0.2
-orjson
-Pillow
+orjson==3.13.0
+Pillow==12.3.0
 
 # Python 3.10+

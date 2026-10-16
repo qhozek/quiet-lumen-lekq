@@ -1,6 +1,7 @@
 #!/bin/bash
+set -euo pipefail
 
-eval "git clone https://github.com/coddrago/Heroku"
+git clone https://github.com/qhozek/quiet-lumen-lekq.git Heroku
 cd Heroku
 
 touch heroku-install.log

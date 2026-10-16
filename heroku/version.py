@@ -8,11 +8,11 @@
 
 # ©️ Codrago, 2024-2030
 # This file is a part of Heroku Userbot
-# 🌐 https://github.com/coddrago/Heroku
+# 🌐 https://github.com/Heroku-userbot/Heroku
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-__version__ = (2, 1, 0)
+__version__ = (2, 2, 0)
 
 import os
 
@@ -21,8 +21,6 @@ if not NO_GIT:
     import git
 else:
     git = None
-from ._internal import (check_commit_ancestor, get_branch_name,
-                        reset_to_master, restart, restore_worktree)
 
 if NO_GIT:
     branch = "master"
@@ -35,3 +33,8 @@ else:
             branch = repo.active_branch.name
     except Exception:
         branch = "master"
+
+
+async def check_branch(me_id: int, allowed_ids=None, self=None):
+    """Compatibility no-op: HerokuSafe never enforces an upstream allow-list."""
+    return

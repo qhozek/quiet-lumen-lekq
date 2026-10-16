@@ -1,6 +1,6 @@
 # ©️ Codrago, 2024-2030
 # This file is a part of Heroku Userbot
-# 🌐 https://github.com/coddrago/Heroku
+# 🌐 https://github.com/Heroku-userbot/Heroku
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
@@ -8,8 +8,11 @@ import asyncio
 import atexit as _atexit
 import contextlib
 import functools
+import json
 import logging
-import random
+import os
+import re
+import secrets
 import signal
 import sys
 import typing
@@ -50,6 +53,7 @@ def ensure_child_watcher():
         with contextlib.suppress(RuntimeError):
             asyncio.set_event_loop(asyncio.get_running_loop())
 
+
 custom_placeholders = {}
 
 
@@ -60,7 +64,7 @@ def rand(size: int, /) -> str:
     :return: Random string
     """
     return "".join(
-        [random.choice("abcdefghijklmnopqrstuvwxyz1234567890") for _ in range(size)]
+        [secrets.choice("abcdefghijklmnopqrstuvwxyz1234567890") for _ in range(size)]
     )
 
 
@@ -245,3 +249,8 @@ def safe_getattr(obj, attr, default=None):
         return getattr(obj, attr, default)
     except AttributeError:
         return default
+
+
+async def allowed_ids(client) -> list[int] | None:
+    """Compatibility no-op; no contact with an upstream-controlled channel."""
+    return None
