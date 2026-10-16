@@ -2,6 +2,7 @@
 aiohappyeyeballs==2.7.1
 aiosignal==1.4.0
 attrs==26.1.0
+async-timeout==5.0.1; python_version < "3.11"
 beautifulsoup4==4.15.0
 bs4==0.0.2
 certifi==2026.7.22
@@ -14,7 +15,8 @@ propcache==0.5.4
 pyaes==1.6.1
 pyasn1==0.6.4
 smmap==5.0.3
-soupsieve==3.0.3
+soupsieve==2.8
+ruamel.yaml.clib==0.2.15; python_version < "3.11" and platform_python_implementation == "CPython"
 typing_extensions==4.16.0
 urllib3==2.8.0
 yarl==1.25.1
